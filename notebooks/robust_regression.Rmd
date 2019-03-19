@@ -1,0 +1,158 @@
+---
+title: "Robustness"
+output: html_notebook
+---
+This notebook is inspired by the examples of 
+[Robust regression](https://rpubs.com/dvallslanaquera/robust_regression)  
+
+Extra resources from the course [From Data to Decisions: Measurement, Uncertainty, Analysis, and Modeling](http://www.lithoguru.com/scientist/statistics/course.html):  
+
+* [Robust statistics (youtube)](https://www.youtube.com/watch?v=AVDySygkMhM)  
+* [Robust regression (youtube)](https://www.youtube.com/watch?v=7a_6roLjwaA)  
+* [Robust regression in R (youtube)](https://www.youtube.com/watch?v=ru-WDbqfSGw)  
+
+```{r}
+# install.packages("carData")
+library(carData)
+data(Duncan)
+head(Duncan, n=10)
+```
+
+If we try to make a traditional linear regression we could see an abnormal pattern of the data, with some outliers:
+
+```{r}
+library(tidyverse)
+ggplot(Duncan, aes(x = education, y = income)) + 
+  geom_point() + stat_smooth(method = "lm", col = "red") + theme_minimal() +
+  ggtitle("Income vs. education")
+```
+
+#1. Outliers
+Let’s try to make a Cook’s barplot (olsrr library) to see the values which are too influential.
+
+See also [Measures of influence](https://cran.r-project.org/web/packages/olsrr/vignettes/influence_measures.html) in the orsrr package.
+
+```{r}
+# Now let's first create our linear model
+fitLS <- lm(income ~ education, data = Duncan)
+# than predict the income from the model, and add the fit column to the dataframe
+duncan.predict <- cbind(Duncan,predict(fitLS, interval = "confidence"))
+# An alternative way to build up the ggplot - add next steps to plot p:
+p <- ggplot(duncan.predict, aes(education, income)) 
+p <- p + geom_point() 
+p <- p + geom_line(aes(education, fit), color="red")
+p <- p + geom_ribbon(aes(ymin=lwr,ymax=upr), alpha=0.2)
+p
+
+```
+We can see in the plot three outliers which are messing up the linear regression method. It is clear that we have to try to solve this with a robust version of the regression method. To remove them is not option since they are not input errors, but real data which represents people who has an income unusually high considering their education level.
+
+_Now we will use some extra measurements from [this blog](https://www.r-bloggers.com/regression-diagnostics-with-r/):_  
+
+###Assumptions
+There are four assumptions of simple linear regression:
+
+* Linear relationship between the two variables.
+* Residuals are independent (can’t be tested statistically, so ignored for now).
+* The residuals of the model are normally distributed.
+* The variance of the residuals isn’t affected by the predicted value (homoscedasticity).
+
+In addition to testing these assumptions, we also need to investigate any outliers, if any. So as well as the assumptions, we’ll check the:
+
+* Cook’s distance
+* Leverage (hat) values
+
+##1.1 Linear relationship between the two variables
+
+```{r}
+par(mfrow=c(2,2))
+plot(fitLS)
+
+```
+The broom package is useful to inspect the model statistics as a dataframe
+```{r}
+library(broom)
+
+tidyFitLS <- tidy(fitLS)
+glanceFitLS <- glance(fitLS)
+augmentFitLS <- augment(fitLS)
+
+```
+```{r}
+tidyFitLS
+
+```
+```{r}
+glanceFitLS
+
+```
+```{r}
+augmentFitLS
+
+```
+```{r}
+influential <- augmentFitLS$.cooksd > mean(augmentFitLS$.cooksd)*4
+head(augmentFitLS[influential,])
+```
+
+```{r}
+ggplot(augmentFitLS) + 
+  geom_point(aes(x=.fitted, y=.cooksd))  +
+  ggtitle("Fitted vs. cooks distance") +
+  geom_hline(aes(yintercept=4*mean(.cooksd)), col="red") +
+  geom_text(data = subset(augmentFitLS, influential), 
+            aes(label=.rownames,x=.fitted,y=.cooksd), nudge_y = 0.01)
+```
+```{r}
+#augmentFitLS <- augmentFitLS[!influential,]
+ggplot(augmentFitLS, aes(sample=.std.resid)) + 
+  stat_qq() + 
+  stat_qq_line()+
+  ggtitle("Residuals should be normally distributed ")
+```
+```{r}
+ggplot(augmentFitLS,aes(.std.resid)) + 
+  geom_histogram(aes(y=stat(density)),fill="gray", col="black", binwidth=0.2) +
+  geom_density(aes(.std.resid), col="blue") +
+  stat_function(fun = dnorm, 
+                args = list(mean=mean(augmentFitLS$.std.resid), 
+                            sd = sd(augmentFitLS$.std.resid)),
+                lwd = 1,
+                col = "red") +  
+  ggtitle("Residuals should be normally distributed ")
+  
+```
+
+```{r}
+shapiro.test(augmentFitLS$.std.resid)
+```
+```{r}
+# Now let's first create our original model
+fitLS <- lm(income ~ education, data = Duncan)
+# than predict the income from the model, and add the fit column to the dataframe
+duncan.predict <- cbind(Duncan,predict(fitLS, interval = "confidence"))
+# An alternative way to build up the ggplot - add next steps to plot p:
+p1 <- ggplot(duncan.predict, aes(education, income)) 
+p1 <- p1 + geom_point() 
+p1 <- p1 + geom_line(aes(education, fit), color="red")
+p1 <- p1 + geom_ribbon(aes(ymin=lwr,ymax=upr), alpha=0.2)
+p1 <- p1 + ggtitle("Original Linear Least Square Model")
+p1
+
+```
+```{r}
+library(MASS)
+# Now let's create our robust linear model
+fitRLS <- rlm(income ~ education, data = Duncan)
+# than predict the income from the model, and add the fit column to the dataframe
+duncan.predict2 <- cbind(Duncan,predict(fitRLS, interval = "confidence"))
+# An alternative way to build up the ggplot - add next steps to plot p:
+p2 <- ggplot(duncan.predict2, aes(education, income)) 
+p2 <- p2 + geom_point() 
+p2 <- p2 + geom_line(aes(education, fit), color="red")
+p2 <- p2 + geom_ribbon(aes(ymin=lwr,ymax=upr), alpha=0.2)
+p2 <- p2 + ggtitle("Robust model using MM")
+p2
+
+```
+

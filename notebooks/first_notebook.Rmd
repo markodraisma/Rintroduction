@@ -1,0 +1,12 @@
+---
+title: "First R Notebook"
+output: html_notebook
+---
+
+You can use ${LaTex}$ equations within your notebook.
+
+__Standard deviation__ is the measure of dispersion of a set of data from its mean.
+$$
+\sigma = \sqrt{\frac{1}{N} \sum_{i=1}^{N} (x_{i}-\mu)^{2}}
+$$
+
