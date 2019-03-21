@@ -1,0 +1,119 @@
+---
+title: "Inspecting Data"
+output: html_notebook 
+---
+# How to inspect your data
+
+```{r}
+# Inspect what datasets are available
+data()
+```
+
+## In this example we will use mtcars, it is already available
+
+```{r}
+mtcars <- datasets::mtcars
+mtcars
+?mtcars
+```
+
+## Inspect the structure and global contents of this dataset
+```{r}
+# Display columns, datatypes, first rows
+str(mtcars)
+
+# Display min/max value, 1st/3rd quantile, median, mean of each variable
+summary(mtcars)
+```
+```{r}
+# or give frequencies of factors
+summary(iris)
+table(iris$Species)
+```
+
+
+## Some columns of mtcars should be factors
+
+Factors are categories, that could be ordered or not. 
+Ordered factors have values that are greater or smaller than others.
+
+```{r}
+help(mtcars)
+?factor
+
+mtcars$am <- factor(mtcars$am)
+mtcars$vs <- factor(mtcars$vs)
+
+# or with better labels:
+
+mtcars <- within(mtcars, {
+  vs <- factor(vs, labels = c("V-shaped", "Straight"))
+  am <- factor(am, labels = c("Automatic", "Manual"))
+})
+# Let's look at the result
+str(mtcars)
+levels(mtcars$vs)
+levels(mtcars$am)
+nlevels(mtcars$am)
+```
+
+```{r}
+# other way:
+# the cyl column should be an ordered column: one value is greater
+# then the other, but it's not continuous
+# the hard way: first inspect the contents of this columns
+head(mtcars$cyl)
+table(mtcars$cyl)
+# now use factor with the specified levels and say it's ordered
+mtcars[,"cyl"] <- factor(mtcars[,"cyl"], levels=c(4,6,8), ordered=TRUE)
+str(mtcars)
+# since the values are already numeric, this is a shorter way:
+mtcars$gear <- ordered(mtcars$gear)
+levels(mtcars$cyl)
+min(mtcars$gear)
+```
+
+## Any NA values available?
+
+```{r}
+sum(!complete.cases(mtcars))
+
+```
+
+## let's introduce some NA values in a copy of mtcars
+NA stands for Not Available. Most formulas kan handle NA values, just by providing na.rm = TRUE. It is always good practice to investigate your dataset on NA values. If the number or NA values is small enough and not representing some hidden structure in your data, you could choose to remove these rows. Otherwise, you will have to take into account that one computation could be based on other rows than other computations.
+
+```{r}
+mtcars2<-mtcars
+mtcars2[3,5]<-NA
+mtcars2[20,6]<-NA
+# how many rows with NA values?
+sum(!complete.cases(mtcars2))
+# what rows are we talking about?
+found.rows <- which(!complete.cases(mtcars2),arr.ind=TRUE)
+# indexes of found rows:
+found.rows
+# the rows in question:
+mtcars2[found.rows,]
+```
+
+```{r}
+# what is the average value of the sixth column (wt)?
+mean(mtcars2[,6])
+mean(mtcars2[,6],na.rm=TRUE)
+sd(mtcars2$wt, na.rm=TRUE)
+fivenum(mtcars2[,6],na.rm=TRUE)
+```
+
+```{r}
+# remove rows with empty values
+mtcars2<-na.omit(mtcars2)
+# calculate correlation between rear axle ratio and weight
+cor(mtcars2$drat,mtcars2$wt)
+# let's save the cleaned data
+# the working directory of this notebook is the directory containing this notebook
+getwd()
+# so we first have to go to the parent directory...
+write.csv(mtcars2, file="../results/mtcars2.csv")
+```
+

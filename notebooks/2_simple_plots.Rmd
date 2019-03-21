@@ -1,0 +1,47 @@
+---
+title: "Plotting data"
+output: html_notebook
+---
+ 
+# Some commonly used plots
+
+We can inspect the distribution of the variables of interest by using histograms
+```{r}
+?mtcars
+# frequencies, default bins
+hist(mtcars$mpg)
+# density, breaks is a hint
+hist(mtcars$mpg, breaks = 12, freq = F )
+```
+
+Boxplots also give a taste of the distribution.
+
+```{r}
+?boxplot
+boxplot(wt ~ cyl, data=mtcars, main="Weight by number of cylinders", xlab="cylinders", ylab="Weight (1000 lbs")
+```
+
+A barplot can help to visualize counts of catagorical data
+```{r}
+cylinders <- table(mtcars$cyl)
+cylinders
+barplot(cylinders, main="Number of cars by cylinders", ylab="frequency", xlab="cylinders")
+```
+Scatter plots can visualize the joined distribution of numerical data
+
+```{r}
+# Another way to use data frames: use attach to provide default dataframe
+attach(mtcars)
+plot(mpg ~ wt, main="Miles per gallon by weight", xlab="Weight", ylab="Miles per gallon")
+detach(mtcars)
+```
+
+To inspect if the distribution is close to normal, we can use qq-plots:
+
+```{r}
+# for a normal distribution, all values should be near the straight line
+?qqnorm
+qqnorm(mtcars$mpg)
+qqline(mtcars$mpg)
+```
+

@@ -1,0 +1,55 @@
+---
+title: "Logistic regression"
+output: html_notebook
+---
+
+Logit and probit models are very similar ways to predict a binary outcome from continuous data.
+While logistic regression used a cumulative logistic function, probit regression uses a normal cumulative density function for the estimation model.
+
+The logistic function p is an S shaped function that always gives a value between 0 and 1.
+
+$$ p(X) = \frac{ e^{\beta_{0} + \beta_{1}X} }{1 + e^{\beta_{0} + \beta_{1}X} } $$
+The above equation can also be reframed as:
+
+$$ \frac{p(X)}{1 - p(X)} = e^{\beta_{0} + \beta_{1}X}$$
+The quantity
+$$\frac{p(X)}{1 - p(X)}$$
+is called the odds ratio, and can take on any value between $0$ and $\infty$.
+Values of the odds ratio close to $0$ and $\infty$ indicate very low and very high probabilities of $p(X)$, respectively.
+
+
+
+The remainder of this notebook is based on [Generalized Linear Models in R, Part 1: Calculating Predicted Probability in Binary Logistic Regression](https://www.theanalysisfactor.com/r-tutorial-glm1/)
+
+In the mtcars data set, the variable vs indicates if a car has a V engine or a straight engine.
+
+We want to create a model that helps us to predict the probability of a vehicle having a V engine or a straight engine given a weight of 2100 lbs and engine displacement of 180 cubic inches.
+
+First we fit the model:
+
+We use the glm() function, include the variables in the usual way, and specify a binomial error distribution, as follows:
+
+```{r}
+model <- glm(formula= vs ~ wt + disp, data=mtcars, family=binomial(link="logit"))
+summary(model)
+```
+We see from the estimates of the coefficients that weight influences vs positively, while displacement has a slightly negative effect.
+
+The model output is somewhat different from that of an ordinary least squares model. Read [Generalized Linear Models in R, Part 2: Understanding Model Fit in Logistic Regression Output](https://www.theanalysisfactor.com/r-glm-model-fit/) for an explanation of terms like "deviance" and "AIC".
+
+Remember, our goal here is to calculate a predicted probability of a V engine, for specific values of the predictors: a weight of 2100 lbs and engine displacement of 180 cubic inches.
+
+To do that, we create a data frame called newdata, in which we include the desired values for our prediction.
+
+```{r}
+newdata = data.frame(wt = 2.1, disp = 180)
+```
+
+Now we use the predict() function to calculate the predicted probability. We include the argument type=”response” in order to get our prediction.
+
+```{r}
+?predict
+predict(model, newdata, type="response")
+```
+So the predicted probability of a V engine, for a weight of 2100 lbs and engine displacement of 180 cubic inches is 0.2361081.
+

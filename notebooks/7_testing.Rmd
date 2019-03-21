@@ -1,0 +1,155 @@
+---
+title: "R testing"
+output: html_notebook
+---
+
+This notebook is based on the chapter [Statistical Tests](http://r-statistics.co/Statistical-Tests-in-R.html) of [r-statistics.co](r-statistics.co)
+
+#1. One Sample t-Test
+###Why is it used?
+It is a parametric test used to test if the mean of a sample from a normal distribution could reasonably be a specific value.
+
+```{r}
+set.seed(100)
+x <- rnorm(50, mean = 10, sd = 0.5)
+t.test(x, mu=10) # testing if mean of x could be 10.1
+```
+How to interpret?  
+
+In above case, the p-Value is not less than significance level of 0.05, therefore the null hypothesis that the mean=10 cannot be rejected. Also note that the 95% confidence interval range includes the value 10 within its range. So, it is ok to say the mean of ‘x’ is 10, especially since ‘x’ is assumed to be normally distributed. In case, a normal distribution is not assumed, use wilcoxon signed rank test shown in next section.
+
+Note: Use conf.level argument to adjust the confidence level.  
+
+#2. Wilcoxon Signed Rank Test
+###Why / When is it used?
+To test the mean of a sample when normal distribution is not assumed. Wilcoxon signed rank test can be an alternative to t-Test, especially when the data sample is not assumed to follow a normal distribution. It is a non-parametric method used to test if an estimate is different from its true value.  
+
+```{r}
+numeric_vector <- c(20, 29, 24, 19, 20, 22, 28, 23, 19, 19)
+# since there are ties, no exact p value can be computed: 
+# a normal approximation is used
+wilcox.test(numeric_vector, mu=20, conf.int = TRUE, exact=FALSE)
+```
+How to interpret?  
+If p-Value < 0.05, reject the null hypothesis and accept the alternate mentioned in your R code’s output. Type example(wilcox.test) in R console for more illustration.
+
+#3. Two Sample t-Test and Wilcoxon Rank Sum Test
+Both t.Test and Wilcoxon rank test can be used to compare the mean of 2 samples. The difference is t-Test assumes the samples being tests is drawn from a normal distribution, while, Wilcoxon’s rank sum test does not.
+
+###How to implement in R?
+Pass the two numeric vector samples into the t.test() when sample is distributed ‘normal’y and wilcox.test() when it isn’t assumed to follow a normal distribution.
+
+```{r}
+x <- c(0.80, 0.83, 1.89, 1.04, 1.45, 1.38, 1.91, 1.64, 0.73, 1.46)
+y <- c(1.15, 0.88, 0.90, 0.74, 1.21)
+wilcox.test(x, y, alternative = "g")  # g for greater
+```
+
+With a p-Value of 0.1262, we cannot reject the null hypothesis that both x and y have same means.  
+
+With p-Value < 0.05, we can safely reject the null hypothesis that there is no difference in mean.
+
+What if we want to do a 1-to-1 comparison of means for values of x and y?
+
+
+```{r}
+# when observations are paired, use 'paired = TRUE' argument.
+
+t.test(x, y, paired = FALSE) 
+
+# both x and y are assumed to have similar shapes
+wilcox.test(x, y, paired = FALSE) 
+```
+
+#4. Shapiro Test
+###Why is it used?
+To test if a sample follows a normal distribution.  
+
+`shapiro.test(numericVector)` \# Does myVec follow a normal distribution?
+
+Lets see how to do the test on a sample from a normal distribution.
+
+```{r}
+set.seed(100)
+normaly_disb <- rnorm(100, mean=5, sd=1) # generate a normal distribution
+shapiro.test(normaly_disb)  # the shapiro test.
+```
+How to interpret?  
+
+The null hypothesis here is that the sample being tested is normally distributed. Since the p Value is not less that the significane level of 0.05, we don’t reject the null hypothesis. Therefore, the tested sample is confirmed to follow a normal distribution (thou, we already know that!).
+
+```{r}
+# Example: Test a uniform distribution
+set.seed(100)
+not_normaly_disb <- runif(100)  # uniform distribution.
+shapiro.test(not_normaly_disb)
+```
+
+How to interpret? 
+
+If p-Value is less than the significance level of 0.05, the null-hypothesis that it is normally distributed can be rejected, which is the case here.
+
+#5. Kolmogorov And Smirnov Test
+Kolmogorov-Smirnov test is used to check whether 2 samples follow the same distribution.
+
+`ks.test(x, y)` \# x and y are two numeric vector
+
+```{r}
+# From different distributions
+x <- rnorm(50)
+y <- runif(50)
+ks.test(x, y)  # perform ks test
+```
+
+```{r}
+# From different but close distributions
+x <- rnorm(50, mean=10, sd=1)
+y <- rnorm(50, mean=10.3, sd=1.2)
+ks.test(x, y)  # perform ks test
+```
+How to tell if they are from the same distribution?  
+
+If p-Value < 0.05 (significance level), we reject the null hypothesis that they are drawn from same distribution. In other words, p < 0.05 implies x and y from different distributions. 
+
+In this case we can't reject the null hypothesis that both samples are from the same distribution.
+
+#6. Fisher’s F-Test
+Fisher’s F test can be used to check if two samples have same variance.
+
+var.test(x, y)  # Do x and y have the same variance?
+Alternatively fligner.test() and bartlett.test() can be used for the same purpose.
+
+```{r}
+var.test(x,y)
+```
+#7. Chi Squared Test
+Chi-squared test in R can be used to test if two categorical variables are dependent, by means of a contingency table.
+
+In mtcars the vs column is a binary variable signaling the engine cylinder configuration a V-shape (vs=0) or Straight Line (vs=1). V==0 and S==1.  
+The am column is binary variable signaling whether vehicle has automatic (am=0) or manual (am=1) transmission configuration.
+
+Are these dependent variables?
+
+```{r}
+chisq.test(table(mtcars$am, mtcars$vs), correct = FALSE)  
+# Yates continuity correction not applied, or
+summary(table(mtcars$am, mtcars$vs)) # performs a chi-squared test.
+```
+###How to tell if x, y are independent?
+
+If the p-Value is less that 0.05, we fail to reject the null hypothesis that the x and y are independent. So for the example output above, (p-Value=0.3409), we won't reject the null hypothesis and conclude that x and y are not independent.
+
+#8. Correlation
+Why is it used?  
+To test the linear relationship of two continuous variables.
+
+The `cor.test()` function computes the correlation between two continuous variables and test if the y is dependent on the x. The null hypothesis is that the true correlation between x and y is zero.
+
+`cor.test(x, y)` \# where x and y are numeric vectors.
+
+Could it be that there is no relation between weight of a car and horsepower?
+```{r}
+?mtcars
+cor.test(mtcars$wt, mtcars$hp)
+```
+

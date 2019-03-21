@@ -1,0 +1,253 @@
+---
+title: "Robustness"
+output: html_notebook
+---
+This notebook is inspired by the examples of 
+[Robust regression](https://rpubs.com/dvallslanaquera/robust_regression)  
+
+Extra resources from the course [From Data to Decisions: Measurement, Uncertainty, Analysis, and Modeling](http://www.lithoguru.com/scientist/statistics/course.html):  
+
+* [Robust statistics (youtube)](https://www.youtube.com/watch?v=AVDySygkMhM)  
+* [Robust regression (youtube)](https://www.youtube.com/watch?v=7a_6roLjwaA)  
+* [Robust regression in R (youtube)](https://www.youtube.com/watch?v=ru-WDbqfSGw)  
+
+```{r}
+# install.packages("carData")
+library(carData)
+?Duncan
+#data(Duncan)
+head(Duncan, n=10)
+```
+
+If we try to make a traditional linear regression we could see an abnormal pattern of the data, with some outliers:
+
+```{r}
+library(tidyverse)
+ggplot(Duncan, aes(x = education, y = income)) + 
+  geom_point() + geom_smooth(method = "lm", col = "red") + theme_minimal() +
+  ggtitle("Income vs. education")
+```
+
+#1. Outliers
+Let’s try to make a Cook’s barplot (olsrr library) to see the values which are too influential.
+
+See also [Measures of influence](https://cran.r-project.org/web/packages/olsrr/vignettes/influence_measures.html) in the orsrr package.
+
+```{r}
+# Now let's first create our linear model
+fitLS <- lm(income ~ education, data = Duncan)
+# than predict the income from the model, and add the fit, 
+# upr and lwr column to the dataframe
+duncan.predict <- cbind(Duncan,predict(fitLS, interval = "confidence"))
+# An alternative way to build up the ggplot - add next steps to plot p:
+p <- ggplot(duncan.predict, aes(education, income)) 
+p <- p + geom_point() 
+p <- p + geom_line(aes(education, fit), color="red")
+p <- p + geom_ribbon(aes(ymin=lwr,ymax=upr), alpha=0.2)
+p
+
+```
+We can see in the plot a few outliers which are messing up the linear regression method. It is clear that we have to try to solve this with a robust version of the regression method. To remove them is not an option since they are not input errors, but real data which represents people who has an income unusually high considering their education level.
+
+_Now we will use some extra measurements from [this blog](https://www.r-bloggers.com/regression-diagnostics-with-r/):_  
+
+###Assumptions
+There are four assumptions of simple linear regression:
+
+* Linear relationship between the two variables.
+* Residuals are independent (can’t be tested statistically, so ignored for now).
+* The residuals of the model are normally distributed.
+* The variance of the residuals isn’t affected by the predicted value (homoscedasticity).
+
+In addition to testing these assumptions, we also need to investigate any outliers, if any. So as well as the assumptions, we’ll check the:
+
+* Cook’s distance
+* Leverage (hat) values
+
+## The diagnostic plots of the linear model
+
+```{r}
+par(mfrow=c(2,2))
+plot(fitLS)
+
+```
+What each of these plots mean, is well explained in [Understanding Diagnostic Plots for Linear Regression Analysis](https://data.library.virginia.edu/diagnostic-plots/):
+
+1. Residuals vs Fitted
+
+This plot shows if residuals have non-linear patterns. There could be a non-linear relationship between predictor variables and an outcome variable and the pattern could show up in this plot if the model doesn’t capture the non-linear relationship. If you find equally spread residuals around a horizontal line without distinct patterns, that is a good indication you don’t have non-linear relationships.
+
+
+2. Normal Q-Q
+
+This plot shows if residuals are normally distributed. Do residuals follow a straight line well or do they deviate severely? It’s good if residuals are lined well on the straight dashed line.
+
+
+3. Scale-Location
+
+It’s also called Spread-Location plot. This plot shows if residuals are spread equally along the ranges of predictors. This is how you can check the assumption of equal variance (homoscedasticity). It’s good if you see a horizontal line with equally (randomly) spread points.
+
+4. Residuals vs Leverage
+
+This plot helps us to find influential cases (i.e., subjects) if any. Not all outliers are influential in linear regression analysis (whatever outliers mean). Even though data have extreme values, they might not be influential to determine a regression line. That means, the results wouldn’t be much different if we either include or exclude them from analysis. They follow the trend in the majority of cases and they don’t really matter; they are not influential. On the other hand, some cases could be very influential even if they look to be within a reasonable range of the values. They could be extreme cases against a regression line and can alter the results if we exclude them from analysis. Another way to put it is that they don’t get along with the trend in the majority of the cases.
+
+Unlike the other plots, this time patterns are not relevant. We watch out for outlying values at the upper right corner or at the lower right corner. Those spots are the places where cases can be influential against a regression line. Look for cases outside of a dashed line, Cook’s distance. When cases are outside of the Cook’s distance (meaning they have high Cook’s distance scores), the cases are influential to the regression results. The regression results will be altered if we exclude those cases.
+
+
+##The broom package is useful to inspect the model statistics as a dataframe
+
+```{r}
+#install.packages("broom")
+library(broom)
+```
+
+There are three interrelated rules which make a dataset tidy:
+
+* Each variable must have its own column.
+* Each observation must have its own row.
+* Each value must have its own cell.
+
+The functions of the broom package help to make the results of a model tidy.
+
+First the original result:
+
+```{r}
+summary(fitLS)
+```
+
+These results are okay to be read by human experts, 
+but lousy to be used as input for other R code, for further analysis.
+
+The broom functions tidy(), glance() and augment() are there to the rescue!
+
+
+```{r}
+# show results for each part of the linear regression formula
+tidy(fitLS)
+```
+```{r}
+# The results of the fit model itself
+glance(fitLS)
+
+```
+```{r}
+# fitted values, residuals, cooks distance, and more for each row
+# We will use this afterwards, so let's save this one
+augmentFitLS <- augment(fitLS)
+augmentFitLS
+```
+
+We will now use .cooksd to identify the values with the greatests cooks distance.
+
+```{r}
+# this creates a vector of TRUE, and FALSE values:
+influential <- augmentFitLS$.cooksd > mean(augmentFitLS$.cooksd)*4
+# use the vector to identify the rows with the outliers
+head(augmentFitLS[influential,])
+```
+
+In this plot the outliers are shown with the rownames.
+The red line is the base line used to differentiate between outliers and normal values
+
+```{r}
+ggplot(augmentFitLS) + 
+  geom_point(aes(x=.fitted, y=.cooksd))  +
+  ggtitle("Fitted vs. cooks distance") +
+  geom_hline(aes(yintercept=4*mean(.cooksd)), col="red") +
+  geom_text(data = subset(augmentFitLS, influential), 
+            aes(label=.rownames,x=.fitted,y=.cooksd), nudge_y = 0.01) ## place the identifiers above the points
+```
+
+A better looking way to create a QQ-plot for the test of normality:
+```{r}
+ggplot(augmentFitLS, aes(sample=.std.resid)) + 
+  stat_qq() + 
+  stat_qq_line()+
+  ggtitle("Residuals should be normally distributed ")
+```
+
+Another way to visually check for normality: 
+```{r}
+ggplot(augmentFitLS,aes(.std.resid)) + 
+  geom_histogram(aes(y=stat(density)),fill="gray", col="black", binwidth=0.2) +
+  geom_density(aes(.std.resid), col="blue") + # blue line represents actual density
+  stat_function(fun = dnorm,                  # red line represents normal density
+                args = list(mean=mean(augmentFitLS$.std.resid), 
+                            sd = sd(augmentFitLS$.std.resid)),
+                lwd = 1,
+                col = "red") +  
+  ggtitle("Residuals should be normally distributed ")
+  
+```
+
+```{r}
+# test the null hypothesis that residuals came from a normal distribution
+shapiro.test(augmentFitLS$.std.resid)
+```
+
+Oops, let's make this test tidy!
+
+```{r}
+shaptest <- shapiro.test(augmentFitLS$.std.resid)
+tidy(shaptest)
+```
+
+
+Now let's try out both the linear model and a robust model.
+```{r}
+# Now let's first create our original model
+fitLS <- lm(income ~ education, data = Duncan)
+# than predict the income from the model, and add the fit column to the dataframe
+duncan.predict <- cbind(Duncan,predict(fitLS, interval = "confidence"))
+# An alternative way to build up the ggplot - add next steps to plot p:
+p1 <- ggplot(duncan.predict, aes(education, income)) 
+p1 <- p1 + geom_point() 
+p1 <- p1 + geom_line(aes(education, fit), color="red")
+p1 <- p1 + geom_ribbon(aes(ymin=lwr,ymax=upr), alpha=0.2)
+p1 <- p1 + ggtitle("Original Linear Least Square Model")
+p1
+
+```
+
+The MASS library contains rlm (robust linear model)
+
+We choose the MM estimator for a model that is less influenced by outliers.
+See [Wikipedia](https://en.wikipedia.org/wiki/Robust_regression#Methods_for_robust_regression) for a short explanation of the robust estimators.
+
+```{r}
+library(MASS)
+?MASS::rlm
+# Now let's create our robust linear model
+fitRLS <- rlm(income ~ education, data = Duncan, method="MM")
+# than predict the income from the model, and add the fit column to the dataframe
+duncan.predict2 <- cbind(Duncan,predict(fitRLS, interval = "confidence"))
+# An alternative way to build up the ggplot - add next steps to plot p:
+p2 <- ggplot(duncan.predict2, aes(education, income)) 
+p2 <- p2 + geom_point() 
+p2 <- p2 + geom_line(aes(education, fit), color="red")
+p2 <- p2 + geom_ribbon(aes(ymin=lwr,ymax=upr), alpha=0.2)
+p2 <- p2 + ggtitle("Robust linear regression")
+p2
+
+```
+For more information about the Mass::rlm function, read [ROBUST REGRESSION | R DATA ANALYSIS EXAMPLES](https://stats.idre.ucla.edu/r/dae/robust-regression/)
+
+
+```{r}
+tidy(fitLS)
+```
+
+```{r}
+tidy(fitRLS)
+```
+
+I miss my p-value for the robust model!
+The lmrob function from the library robustbase gives more information, 
+but the broom package can't handle it yet.
+
+```{r}
+library(robustbase)
+fitRLS2 <- lmrob(income ~ education, data = Duncan, method = "MM")
+summary(fitRLS2)
+```
+
