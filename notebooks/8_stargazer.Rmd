@@ -1,0 +1,43 @@
+---
+title: "Using stargazer to create nice table output"
+output: pdf_document
+# alternative: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(stargazer)
+# look into the documentation of stargazer:
+# vignette("stargazer")
+```
+
+
+Here is the latex table in a PDF document:
+
+
+This is a notebook based on vignette("stargazer"):
+
+To create a summary statistics table from the ‘attitude’ data frame (which should be available with your default installation of R), simply run the following:
+
+```{r results = "asis"}
+stargazer(attitude, header=FALSE, type="latex")
+# now use Knit to create te pdf document
+```
+
+Or, if we want to have word-oudput (not for now, put in R chunk to try out, change output to word_document in top op page):
+
+{r word_table, comment = ''}
+/#Stargazer table in microsoft word:v
+/#stargazer(attitude, type = 'text')]]
+
+To output the contents of the first four rows of some data frame, specify the part of the data frame you would like to see, and set the summary option to FALSE:
+
+```{r, results = "asis"}
+#first 4 rows
+stargazer(attitude[1:4,], summary=FALSE, rownames=FALSE, header=FALSE, type="latex")
+```
+
+
+
+
+

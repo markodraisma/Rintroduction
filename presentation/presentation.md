@@ -132,7 +132,7 @@ What's next?
 2. import data from github: https://github.com/markodraisma/Rintroduction
 3. create a new project based on this folder
 4. take good notice of the resources in notebook 0 (make your own changes)
-5. try out notebook 1 to 7 (add your own code and comments)
+5. try out notebook 1 to 8 (add your own code and comments)
 6. create a new project, and a new notebook
 7. in it, assemble information to check out later, needed for you thesis
 8. try out 01,04,05,06,08 from [https://swcarpentry.github.io/r-novice-gapminder/](https://swcarpentry.github.io/r-novice-gapminder/) 

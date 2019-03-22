@@ -41,6 +41,7 @@ Ordered factors have values that are greater or smaller than others.
 help(mtcars)
 ?factor
 
+
 mtcars$am <- factor(mtcars$am)
 mtcars$vs <- factor(mtcars$vs)
 
@@ -114,6 +115,6 @@ cor(mtcars2$drat,mtcars2$wt)
 # the working directory of this notebook is the directory containing this notebook
 getwd()
 # so we first have to go to the parent directory...
-write.csv(mtcars2, file="../results/mtcars2.csv")
+#write.csv(mtcars2, file="../results/mtcars2.csv")
 ```
 
