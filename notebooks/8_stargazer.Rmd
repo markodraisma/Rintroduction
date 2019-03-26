@@ -33,10 +33,9 @@ To output the contents of the first four rows of some data frame, specify the pa
 stargazer(attitude[1:4,], summary=FALSE, rownames=FALSE, header=FALSE, type="latex")
 ```
 
-Now, let us try to create a simple regression table with three side-by-side models – two Ordinary
-Least Squares (OLS) and one probit regression model – using the lm() and glm() functions. We can
-set the align argument to TRUE, so that coefficients in each column are aligned along the decimal
-point. Table 3 shows the result.
+Now, let us try to create a simple regression table with three side-by-side models – two Ordinary Least Squares (OLS) and one probit regression model – using the lm() and glm() functions.   
+We canset the align argument to TRUE, so that coefficients in each column are aligned along the decimal point.  
+Table 3 shows the result.
 
 ```{r, results = "asis"}
 ## 2 OLS models
@@ -51,12 +50,9 @@ stargazer(linear.1, linear.2, probit.model, title="Results", align=FALSE, header
 
 ```
 
-In Table 4, we go a little bit further, and make some formatting and labeling adjustments. In
-particular, we remove all empty lines from the table (using no.space), and use omit.stat to leave
-out several statistics – namely, the log-likelihood (“LL’’), residual standard error (“ser”) and the
-F-statistic (“f ”). Additionally, we label each of the dependent and independent variables with an
-easy-to-understand name. To do so, we use the dep.var.labels and covariate.labels arguments. The
-result is a complex, publication-quality LATEX table. The relevant command call looks like this:
+In Table 4, we go a little bit further, and make some formatting and labeling adjustments. In particular, we remove all empty lines from the table (using no.space), and use omit.stat to leave out several statistics – namely, the log-likelihood (“LL’’), residual standard error (“ser”) and the F-statistic (“f ”).   
+Additionally, we label each of the dependent and independent variables with an
+easy-to-understand name. To do so, we use the dep.var.labels and covariate.labels arguments. The result is a complex, publication-quality LATEX table. The relevant command call looks like this:
 
 ```{r, results="asis"}
 stargazer(linear.1, linear.2, probit.model, title="Regression Results",
@@ -64,7 +60,6 @@ align=FALSE, dep.var.labels=c("Overall Rating","High Rating"),
 covariate.labels=c("Handling of Complaints","No Special Privileges",
 "Opportunity to Learn","Performance-Based Raises","Too Critical","Advancement"),
 omit.stat=c("LL","ser","f"), no.space=TRUE, header=FALSE, type="latex")
-
 ```
 
 
