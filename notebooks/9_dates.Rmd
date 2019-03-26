@@ -1,0 +1,325 @@
+---
+title: "R dates"
+output: html_notebook
+---
+You can use strptime to read in strings and create objects of classes "POSIXlt" and "POSIXct" representing calendar dates and times. To convert the other way around, you can use strftime.
+
+```{r}
+?strptime
+df <- data.frame("ID" = 1:2, "date" = c("21/03/2019","15/03/2019"))
+df
+df$date<-strptime(df$date, format = '%d/%m/%Y', 'GMT')
+# now show 
+strftime(df$date, format = '%Y-%m-%d')
+```
+
+It is easier to work with the lubridate library. The following is based on [chapter 6 of R for Data Science](https://r4ds.had.co.nz/dates-and-times.html).
+
+First we load library lubridate. It is within the tidyverse, so "library(tidyverse)" works as well. The nycflights13 dataset contains date and time information.
+
+```{r}
+library(lubridate)
+library(nycflights13)
+```
+
+
+#Creating date/times
+There are three types of date/time data that refer to an instant in time:
+
+A date. Tibbles (newer alternatives to dataframes) print this as <date>.
+
+A time within a day. Tibbles print this as <time>.
+
+A date-time is a date plus a time: it uniquely identifies an instant in time (typically to the nearest second). Tibbles print this as <dttm>. Elsewhere in R these are called POSIXct, but I don’t think that’s a very useful name.
+
+You should always use the simplest possible data type that works for your needs. That means if you can use a date instead of a date-time, you should. 
+To get the current date or date-time you can use today() or now():
+
+```{r}
+today()
+now()
+```
+
+
+Otherwise, there are three ways you’re likely to create a date/time:
+
+* From a string.  
+* From individual date-time components.  
+* From an existing date/time object.  
+
+They work as follows.
+
+##From strings
+
+We've seen the use of strptime to parse dates and times. Another approach is to use the helpers provided by lubridate. They automatically work out the format once you specify the order of the component. To use them, identify the order in which year, month, and day appear in your dates, then arrange “y”, “m”, and “d” in the same order. That gives you the name of the lubridate function that will parse your date. For example:
+
+```{r}
+ymd("2019-01-31")
+mdy("January 31st, 2019")
+dmy("31-Jan-2019")
+```
+
+These functions also take unquoted numbers. ymd() is short and unambiguous:
+
+```{r}
+ymd(20190131)
+```
+
+`ymd()` and friends create dates. To create a date-time, add an underscore and one or more of “h”, “m”, and “s” to the name of the parsing function:
+
+```{r}
+ymd_hms("2019-01-31 20:11:59")
+mdy_hm("01/31/2019 08:01")
+```
+
+You can also force the creation of a date-time from a date by supplying a timezone:
+
+```{r}
+ymd(20190731, tz = "Europe/Amsterdam")
+# CEST in output: Central Europe Summer Time
+```
+##From individual components
+
+Instead of a single string, sometimes you’ll have the individual components of the date-time spread across multiple columns. This is what we have in the flights data:
+
+```{r}
+library(dplyr)
+flights %>% 
+  select(year, month, day, hour, minute)
+```
+
+
+To create a date/time from this sort of input, use make_date() for dates, or make_datetime() for date-times:
+
+```{r}
+flights %>% 
+  select(year, month, day, hour, minute) %>% 
+  mutate(departure = make_datetime(year, month, day, hour, minute))
+```
+
+
+Let’s do the same thing for each of the four time columns in flights. The times are represented in a slightly odd format, so we use modulus arithmetic to pull out the hour and minute components. Once I’ve created the date-time variables, I focus in on the variables we’ll explore in the rest of the chapter.
+
+```{r}
+# This function gets a time component in formats like 1224 to represent
+# 12:24. To get the hours and minutes out of such a number:
+# integer divide by 100 for the hours and
+# modulus 100 for the minutes:
+
+make_datetime_100 <- function(year, month, day, time) {
+  make_datetime(year, month, day, time %/% 100, time %% 100)
+}
+
+flights_dt <- flights %>% 
+  filter(!is.na(dep_time), !is.na(arr_time)) %>% # only available values
+  mutate(                                        # create new columns
+    dep_time = make_datetime_100(year, month, day, dep_time),
+    arr_time = make_datetime_100(year, month, day, arr_time),
+    sched_dep_time = make_datetime_100(year, month, day, sched_dep_time),
+    sched_arr_time = make_datetime_100(year, month, day, sched_arr_time)
+  ) %>%                                         
+  select(origin, dest, ends_with("delay"), ends_with("time"))
+
+flights_dt
+```
+
+With this data, I can visualise the distribution of departure times across the year:
+
+```{r}
+flights_dt %>% 
+  ggplot(aes(dep_time)) + 
+  geom_freqpoly(binwidth = 86400) # 86400 seconds = 1 day
+```
+
+Or within a single day:
+
+```{r}
+flights_dt %>% 
+  filter(dep_time < ymd(20130102)) %>% 
+  ggplot(aes(dep_time)) + 
+  geom_freqpoly(binwidth = 600) # 600 s = 10 minutes
+```
+Note that when you use date-times in a numeric context (like in a histogram), 1 means 1 second, so a binwidth of 86400 means one day. For dates, 1 means 1 day.
+
+##Date-time components
+Now that you know how to get date-time data into R’s date-time data structures, let’s explore what you can do with them. This section will focus on the accessor functions that let you get and set individual components. The next section will look at how arithmetic works with date-times.
+
+###Getting components
+You can pull out individual parts of the date with the accessor functions year(), month(), mday() (day of the month), yday() (day of the year), wday() (day of the week), hour(), minute(), and second().
+
+```{r}
+datetime <- ymd_hms("2016-07-08 12:34:56")
+year(datetime)
+month(datetime)
+mday(datetime)
+yday(datetime)
+wday(datetime)
+```
+
+For month() and wday() you can set label = TRUE to return the abbreviated name of the month or day of the week. Set abbr = FALSE to return the full name.
+
+```{r}
+month(datetime, label = TRUE)
+wday(datetime, label = TRUE, abbr = FALSE)
+```
+
+###Rounding
+An alternative approach to plotting individual components is to round the date to a nearby unit of time, with floor_date(), round_date(), and ceiling_date(). Each function takes a vector of dates to adjust and then the name of the unit round down (floor), round up (ceiling), or round to. This, for example, allows us to plot the number of flights per week:
+
+```{r}
+flights_dt %>% 
+  count(week = floor_date(dep_time, "week")) %>% 
+  ggplot(aes(week, n)) +
+    geom_line()
+```
+
+###Setting components
+You can also use each accessor function to set the components of a date/time:
+
+```{r}
+(datetime <- ymd_hms("2016-07-08 12:34:56"))
+year(datetime) <- 2020
+datetime
+month(datetime) <- 01
+datetime
+hour(datetime) <- hour(datetime) + 1
+datetime
+```
+
+Alternatively, rather than modifying in place, you can create a new date-time with update(). This also allows you to set multiple values at once.
+
+```{r}
+update(datetime, year = 2020, month = 2, mday = 2, hour = 2)
+```
+
+You can use update() to show the distribution of flights across the course of the day for every day of the year:
+
+```{r}
+flights_dt %>% 
+  mutate(dep_hour = update(dep_time, yday = 1)) %>% 
+  ggplot(aes(dep_hour)) +
+    geom_freqpoly(binwidth = 300)
+```
+
+*Setting larger components of a date to a constant is a powerful technique that allows you to explore patterns in the smaller components.*
+
+##Time spans
+Next you’ll learn about how arithmetic with dates works, including subtraction, addition, and division. Along the way, you’ll learn about three important classes that represent time spans:
+
+* _durations_, which represent an exact number of seconds.
+* _periods_, which represent human units like weeks and months.
+* _intervals_, which represent a starting and ending point.
+
+###Durations
+In R, when you subtract two dates, you get a difftime object:
+```{r}
+h_age <- today() - ymd(19791014)
+h_age
+```
+A difftime class object records a time span of seconds, minutes, hours, days, or weeks. This ambiguity can make difftimes a little painful to work with, so lubridate provides an alternative which always uses seconds: the __duration__.
+
+```{r}
+as.duration(h_age)
+```
+
+Durations come with a bunch of convenient constructors:
+
+```{r}
+dseconds(15)
+dminutes(10)
+dhours(c(12, 24))
+```
+As you can see, each value is expressed in seconds.
+
+```{r}
+ddays(0:5)
+dweeks(3)
+dyears(1)
+```
+__Durations always record the time span in seconds.__ Larger units are created by converting minutes, hours, days, weeks, and years to seconds at the standard rate (60 seconds in a minute, 60 minutes in an hour, 24 hours in day, 7 days in a week, 365 days in a year).
+
+You can add and multiply durations:
+```{r}
+2 * dyears(1)
+dyears(1) + dweeks(12) + dhours(15)
+```
+
+You can add and subtract durations to and from days:
+```{r}
+tomorrow <- today() + ddays(1)
+last_year <- today() - dyears(1)
+```
+
+However, because durations represent an exact number of seconds, sometimes you might get an unexpected result:
+
+```{r}
+one_pm <- ymd_hms("2016-03-12 13:00:00", tz = "America/New_York")
+one_pm
+one_pm + ddays(1)
+```
+
+Why is one day after 1pm on March 12, 2pm on March 13?!  
+
+If you look carefully at the date you might also notice that the time zones have changed. Because of DST, March 12 only has 23 hours, so if we add a full days worth of seconds we end up with a different time.
+
+###Periods
+Periods are time spans but don’t have a fixed length in seconds, instead they work with “human” times, like days and months. That allows them work in a more intuitive way:
+
+```{r}
+one_pm
+one_pm + days(1)
+```
+
+Like durations, periods can be created with a number of friendly constructor functions.
+
+```{r}
+seconds(15)
+minutes(10)
+hours(c(12, 24))
+```
+
+```{r}
+days(7)
+months(1:6)
+weeks(3)
+years(1)
+
+```
+
+You can add and multiply periods:
+
+```{r}
+10 * (months(6) + days(1))
+days(50) + hours(25) + minutes(2)
+```
+
+###Intervals
+It’s obvious what dyears(1) / ddays(365) should return: one, because durations are always represented by a number of seconds, and a duration of a year is defined as 365 days worth of seconds.
+
+What should years(1) / days(1) return? Well, if the year was 2015 it should return 365, but if it was 2016, it should return 366! There’s not quite enough information for lubridate to give a single clear answer. What it does instead is give an estimate, with a warning:
+
+```{r}
+years(1) / days(1)
+```
+
+If you want a more accurate measurement, you’ll have to use an interval. An interval is a duration with a starting point: that makes it precise so you can determine exactly how long it is:
+
+```{r}
+next_year <- today() + years(1)
+(today() %--% next_year) / ddays(1) # division
+(today() %--% next_year) %/% days(1) # integer division
+```
+
+This way we can also trick a period into a more obvious period. 
+Look at the difference in the first period and the one that is forced into an interval, an than converted back into a period:
+
+```{r}
+3 * (months(4) + weeks(3) + days(19) + hours(12))
+
+to_interval <- function(period_to_be_converted) {
+  as.period(today() %--% (today() + period_to_be_converted))
+}
+
+to_interval(3 * (months(4) + weeks(3) + days(19) + hours(12)))
+```
+

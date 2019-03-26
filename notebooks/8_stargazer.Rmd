@@ -1,0 +1,71 @@
+---
+title: "Using stargazer to create nice table output"
+output: pdf_document
+# alternative: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(stargazer)
+# look into the documentation of stargazer:
+# vignette("stargazer")
+```
+
+This is a notebook based on vignette("stargazer"):
+
+To create a summary statistics table from the ‘attitude’ data frame (which should be available with your default installation of R), simply run the following:
+
+```{r results = "asis"}
+stargazer(attitude, header=FALSE, type="latex")
+# now use Knit to create te pdf document
+```
+
+Or, if we want to have word-oudput (not for now, put in R chunk to try out, change output to word_document in top op page):
+
+{r word_table, comment = ''}
+/#Stargazer table in microsoft word:v
+/#stargazer(attitude, type = 'text')]]
+
+To output the contents of the first four rows of some data frame, specify the part of the data frame you would like to see, and set the summary option to FALSE:
+
+```{r, results = "asis"}
+#first 4 rows
+stargazer(attitude[1:4,], summary=FALSE, rownames=FALSE, header=FALSE, type="latex")
+```
+
+Now, let us try to create a simple regression table with three side-by-side models – two Ordinary
+Least Squares (OLS) and one probit regression model – using the lm() and glm() functions. We can
+set the align argument to TRUE, so that coefficients in each column are aligned along the decimal
+point. Table 3 shows the result.
+
+```{r, results = "asis"}
+## 2 OLS models
+linear.1 <- lm(rating ~ complaints + privileges + learning + raises + critical,
+data=attitude)
+linear.2 <- lm(rating ~ complaints + privileges + learning, data=attitude)
+## create an indicator dependent variable, and run a probit model
+attitude$high.rating <- (attitude$rating > 70)
+probit.model <- glm(high.rating ~ learning + critical + advance, data=attitude,
+family = binomial(link = "probit"))
+stargazer(linear.1, linear.2, probit.model, title="Results", align=FALSE, headers=FALSE, type="latex")
+
+```
+
+In Table 4, we go a little bit further, and make some formatting and labeling adjustments. In
+particular, we remove all empty lines from the table (using no.space), and use omit.stat to leave
+out several statistics – namely, the log-likelihood (“LL’’), residual standard error (“ser”) and the
+F-statistic (“f ”). Additionally, we label each of the dependent and independent variables with an
+easy-to-understand name. To do so, we use the dep.var.labels and covariate.labels arguments. The
+result is a complex, publication-quality LATEX table. The relevant command call looks like this:
+
+```{r, results="asis"}
+stargazer(linear.1, linear.2, probit.model, title="Regression Results",
+align=FALSE, dep.var.labels=c("Overall Rating","High Rating"),
+covariate.labels=c("Handling of Complaints","No Special Privileges",
+"Opportunity to Learn","Performance-Based Raises","Too Critical","Advancement"),
+omit.stat=c("LL","ser","f"), no.space=TRUE, header=FALSE, type="latex")
+
+```
+
+
+
